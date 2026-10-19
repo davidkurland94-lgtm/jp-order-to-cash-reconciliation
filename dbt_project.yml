@@ -1,0 +1,19 @@
+# dbt_project.yml — the project's "settings page"
+name: o2c_recon
+version: "1.0.0"
+profile: o2c_recon          # must match the top name in profiles.yml
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+analysis-paths: ["analyses"]
+
+models:
+  o2c_recon:
+    staging:
+      +materialized: view     # staging = light cleanup, so a view is enough
+    intermediate:
+      +materialized: view
+    marts:
+      +materialized: table    # marts = what people query, so store them as tables

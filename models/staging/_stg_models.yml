@@ -1,0 +1,16 @@
+# _stg_models.yml — documentation + tests for the staging models
+version: 2
+
+models:
+  - name: stg_customers
+    description: One row per customer, with every way their name gets written
+    columns:
+      - name: customer_id
+        description: Primary key, e.g. C001
+        data_tests:
+          - unique
+          - not_null
+      - name: bank_payer_name
+        description: Name as it appears on a bank statement (half-width katakana)
+        data_tests:
+          - not_null

@@ -1,0 +1,18 @@
+# _sources.yml — declares the RAW data dbt reads from but does not create.
+# dbt-duckdb can read a CSV directly: {name} is replaced by each table's name,
+# so the "customers" table reads raw_data/customers.csv.
+version: 2
+
+sources:
+  - name: raw
+    meta:
+      external_location: "read_csv('raw_data/{name}.csv', header = true, all_varchar = true)"
+    tables:
+      - name: customers
+        description: Customer master list (official name, sales name, bank name)
+      - name: crm_orders
+        description: Orders as recorded by sales (Salesforce-style)
+      - name: erp_invoices
+        description: Invoices as billed by finance (Visma-style)
+      - name: bank_transactions
+        description: Money that actually arrived in the bank account

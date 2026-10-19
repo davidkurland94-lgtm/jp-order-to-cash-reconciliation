@@ -1,0 +1,9 @@
+# profiles.yml — tells dbt WHICH database to send the SQL to.
+# With DuckDB, the whole database is just this one file on your laptop.
+o2c_recon:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: o2c.duckdb       # created automatically on the first run
+      threads: 4
