@@ -14,3 +14,112 @@ models:
         description: Name as it appears on a bank statement (half-width katakana)
         data_tests:
           - not_null
+
+  - name: stg_crm_orders
+    description: One row per order, with account name, amount, and order date
+    columns:
+      - name: order_id
+        description: Primary key, e.g. O-1001
+        data_tests:
+          - unique
+          - not_null
+      - name: order_amount_jpy
+        data_type: integer
+        description: Amount of the order in Japanese Yen
+        data_tests:
+          - not_null
+          - greater_than:
+              arguments:
+                min_value: 0
+      - name: order_date
+        data_type: date
+        description: Date of the order
+        data_tests:
+          - not_null
+
+  - name: stg_erp_invoices
+    description: One row per invoice, with connection to order_id, customer name, invoice_date, invoice_due_date, and amount
+    columns:
+      - name: invoice_id
+        description: Primary key, e.g. INV-2001
+        data_tests:
+         - not_null
+         - unique
+      - name: order_id
+        data_type: varchar
+        description: "Foreign key for the crm_orders"
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_crm_orders')
+                field: order_id
+
+      - name: customer_name
+        data_type: varchar
+        description: "Customer's name spelled out"
+
+      - name: invoice_date
+        data_type: date
+        description: "Date that the invoice was sent to the customer"
+        data_tests:
+         - not_null
+         # assert_due_date_after_invoice_date will check that due_date is not before invoice_date
+
+      - name: due_date
+        data_type: date
+        description: "Date that the customer needs to pay by"
+        data_tests:
+         - not_null
+
+      - name: invoice_amount_jpy
+        data_type: integer
+        description: "Amount that the customer needs to pay"
+        data_tests:
+         - not_null
+         - greater_than:
+            arguments:
+              min_value: 0
+
+  - name: stg_bank_transactions
+    description: One row per incoming bank transaction (money that actually arrived), with payer name and optional memo
+    columns:
+      - name: transaction_id
+        data_type: varchar
+        description: Primary key, e.g. T-00001
+        data_tests:
+          - unique
+          - not_null
+
+      - name: paid_on_date
+        data_type: date
+        description: "Date the payment arrived in the bank account"
+        data_tests:
+          - not_null
+
+      - name: amount_paid_jpy
+        data_type: integer
+        description: "Amount received in Japanese Yen (may be short of the invoice if the customer deducted the transfer fee)"
+        data_tests:
+          - not_null
+          - greater_than:
+              arguments:
+                min_value: 0
+
+      - name: payer_name
+        data_type: varchar
+        description: "Payer name as printed on the bank statement (half-width katakana); some payers match no customer"
+        data_tests:
+          - not_null
+
+      - name: memo
+        data_type: varchar
+        description: "Free-text memo from the payer; often blank, sometimes an invoice number (INV-2045 or INV2045) or a month note like 5ｶﾞﾂﾌﾞﾝ"
+
+      - name: memo_invoice_id
+        data_type: varchar
+        description: "Invoice number parsed from memo and standardized to INV-####; null when the memo has no invoice number"
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_erp_invoices')
+                field: invoice_id

@@ -1,0 +1,66 @@
+# _int_models.yml — documentation + tests for the intermediate models
+version: 2
+
+models:
+  - name: int_customer_names
+    description: One row per name variant (official, ㈱, short, bank) mapped to its customer_id
+    columns:
+      - name: customer_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_customers')
+                field: customer_id
+      - name: name_variant
+        description: "A spelling of the customer's name; unique so joining on it never duplicates rows"
+        data_tests:
+          - unique
+          - not_null
+      - name: name_type
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['official', 'official_abbrev', 'short', 'bank']
+
+  - name: int_invoice_payments
+    description: One row per invoice with at least one matched payment, with total received
+    columns:
+      - name: invoice_id
+        description: Primary key
+        data_tests:
+          - unique
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_erp_invoices')
+                field: invoice_id
+      - name: total_received_jpy
+        description: Sum of all payments matched to this invoice
+      - name: payment_count
+        description: "Number of payments; more than 1 usually means a duplicate payment"
+
+  - name: int_payments_matched
+    description: One row per bank transaction, with the invoice it pays and which rule matched it
+    columns:
+      - name: transaction_id
+        description: Primary key, e.g. T-00001
+        data_tests:
+          - unique
+          - not_null
+
+      - name: invoice_id
+        description: "Invoice this payment was applied to; null when no rule could match it"
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_erp_invoices')
+                field: invoice_id
+
+      - name: match_method
+        description: "Which rule matched: memo, amount, customer, or unmatched"
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['memo', 'amount', 'customer', 'unmatched']
