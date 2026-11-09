@@ -8,8 +8,8 @@
 --                 one of that customer's invoices (or is short by a bank transfer fee)
 -- Anything still unmatched gets match_method = 'unmatched' -> exceptions mart.
 
--- Jinja variable: the biggest bank transfer fee (振込手数料) a customer may deduct
-{% set max_bank_fee_jpy = 880 %}
+-- The biggest bank transfer fee (振込手数料) a customer may deduct; set in dbt_project.yml
+{% set max_bank_fee_jpy = var('max_bank_fee_jpy') %}
 
 with transactions as (
 
@@ -23,9 +23,9 @@ invoices as (
 
 ),
 
-customers as (
+customer_names as (
 
-    select * from {{ ref('stg_customers') }}
+    select * from {{ ref('int_customer_names') }}
 
 ),
 
@@ -97,21 +97,20 @@ transactions_with_customer as (
         t.*,
         c.customer_id
     from unmatched_after_amount as t
-    inner join customers as c
-        on t.payer_name = c.bank_payer_name
+    inner join customer_names as c
+        on c.name_variant = t.payer_name
 
 ),
 
--- ERP side: finance types 株式会社 as ㈱ or leaves it off, so undo ㈱ and accept
--- either the official name or the short (sales) name.
+-- Map the ERP name to customer_id via the lookup
 invoices_with_customer as (
 
     select
         i.*,
         c.customer_id
     from open_after_amount as i
-    inner join {{ ref('int_customer_names') }} as c
-        on replace(i.customer_name, '㈱', '株式会社') in (c.official_name, c.sales_name)
+    inner join customer_names as c
+        on c.name_variant = i.customer_name
 
 ),
 

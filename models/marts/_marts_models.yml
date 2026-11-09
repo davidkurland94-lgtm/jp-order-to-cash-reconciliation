@@ -1,0 +1,75 @@
+# _marts_models.yml — documentation + tests for the marts (the tables people query)
+version: 2
+
+models:
+  - name: fct_invoice_reconciliation
+    description: One row per invoice, with what was billed, what was received, and its reconciliation status
+    columns:
+      - name: invoice_id
+        description: Primary key, e.g. INV-2001
+        data_tests:
+          - unique
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_erp_invoices')
+                field: invoice_id
+      - name: customer_id
+        description: Customer, resolved from the ERP name via int_customer_names
+        data_tests:
+          - not_null
+      - name: total_received_jpy
+        description: Sum of all matched payments (0 when nothing arrived)
+      - name: short_amount_jpy
+        description: "Billed minus received; negative means overpaid"
+      - name: open_amount_jpy
+        description: "What the customer still owes; 0 when settled (including fee-deducted), negative when we owe a refund"
+        data_tests:
+          - not_null
+      - name: bank_fee_jpy
+        description: Transfer fee the customer deducted, to be booked as an expense (支払手数料)
+      - name: reconciliation_status
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['paid', 'paid_fee_deducted', 'partial', 'overpaid', 'unpaid_overdue', 'not_yet_due']
+      - name: days_past_due
+        description: "Days between due_date and as_of_date; 0 if not yet due"
+      - name: is_missing_order
+        description: The invoice's order_id is not in the CRM
+      - name: is_amount_differs_from_order
+        description: The invoice amount is different from the CRM order amount
+
+  - name: mart_ar_aging
+    description: One row per customer with open receivables, split into aging buckets by days past due
+    columns:
+      - name: customer_id
+        description: Primary key
+        data_tests:
+          - unique
+          - not_null
+      - name: total_open_jpy
+        description: Sum of all buckets
+        data_tests:
+          - greater_than:
+              arguments:
+                min_value: 0
+
+  - name: mart_exceptions
+    description: One row per issue that needs a person (unmatched money, over/under payment, overdue, billing mismatch)
+    columns:
+      - name: exception_id
+        description: "Primary key: exception_type + invoice_id or transaction_id"
+        data_tests:
+          - unique
+          - not_null
+      - name: exception_type
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['unmatched_payment', 'overpaid', 'partial_payment', 'unpaid_overdue', 'invoice_without_order', 'amount_differs_from_order']
+      - name: amount_jpy
+        description: "Money involved: payment amount, open amount, or invoice-vs-order difference"
+      - name: next_step
+        description: Suggested action for the finance team

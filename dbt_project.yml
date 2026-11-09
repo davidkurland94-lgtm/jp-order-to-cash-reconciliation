@@ -9,6 +9,12 @@ test-paths: ["tests"]
 macro-paths: ["macros"]
 analysis-paths: ["analyses"]
 
+# vars = project-wide settings any model can read with {{ var('name') }}.
+# Override on the command line: dbt build --vars '{as_of_date: 2026-11-01}'
+vars:
+  as_of_date: '2026-10-01'    # "today" for the dataset; the bank data stops here
+  max_bank_fee_jpy: 880       # biggest transfer fee (振込手数料) a customer may deduct
+
 models:
   o2c_recon:
     staging:
