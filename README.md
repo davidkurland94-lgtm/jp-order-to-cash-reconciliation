@@ -78,6 +78,18 @@ Names are resolved through `int_customer_names`, a lookup of every way each cust
 - **Company-name variants:** `株式会社サクラ電機`, `㈱サクラ電機`, `サクラ電機` and `ｶ)ｻｸﾗﾃﾞﾝｷ` are all the same customer.
 - **督促 (payment reminders):** overdue invoices appear in the exceptions list with "Send a payment reminder" as the next step.
 
+## Dashboard
+
+A [Streamlit](https://streamlit.io) app over `mart_ar_aging` shows what's owed, how late it is, and who owes it.
+
+![AR aging dashboard](docs/images/dashboard.png)
+
+```bash
+streamlit run dashboard/app.py
+```
+
+On a fresh clone, the app builds `o2c.duckdb` itself on first launch (the same load + `dbt build` steps CI runs), so it works with one command.
+
 ## Results (as of 2026-10-01)
 
 **Invoice status** (`fct_invoice_reconciliation`, 299 invoices)
@@ -132,6 +144,7 @@ python load_raw_data.py      # loads raw_data/*.csv into o2c.duckdb
 dbt deps
 dbt build                    # seeds, models, and tests
 dbt docs generate && dbt docs serve   # browse the lineage graph locally
+streamlit run dashboard/app.py        # the AR aging dashboard
 ```
 
 The whole warehouse is one DuckDB file. There's no cloud account or server to set up. Settings like the as-of date and the maximum fee are dbt `vars` in [`dbt_project.yml`](dbt_project.yml), and can be overridden:
@@ -146,4 +159,4 @@ dbt build --vars '{as_of_date: 2026-11-01}'
 
 ## Stack
 
-dbt-core 1.12 · DuckDB · Python 3.10 · GitHub Actions · GitHub Pages
+dbt-core 1.12 · DuckDB · Streamlit · Python 3.10 · GitHub Actions · GitHub Pages
