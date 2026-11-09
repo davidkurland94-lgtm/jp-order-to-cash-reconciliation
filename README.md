@@ -5,7 +5,7 @@
 
 A dbt project that answers the question every finance team asks at month end: **"Did we get paid for everything we billed, and if not, what needs chasing?"**
 
-In this project, there is a reconciliation of  three systems that never quite agree, for a FICTIONAL Japanese B2B company:
+In this project, there is a reconciliation of three systems that never quite agree, for a FICTIONAL Japanese B2B company:
 
 | Source | What it records | Typical pain points |
 |---|---|---|
@@ -80,15 +80,25 @@ Names are resolved through `int_customer_names`, a lookup of every way each cust
 
 ## Dashboard
 
-A [Streamlit](https://streamlit.io) app over `mart_ar_aging` shows what's owed, how late it is, and who owes it.
+A [Streamlit](https://streamlit.io) app with one page per mart. See [Run it yourself](#run-it-yourself) to open it.
 
-![AR aging dashboard](docs/images/dashboard.png)
+### AR aging (`mart_ar_aging`)
 
-```bash
-streamlit run dashboard/app.py
-```
+What's owed, how late it is, and who owes it. Cards show the total owed, the overdue amount, the customer with the largest past-due balance, and the oldest open invoice. Charts break the open amount down by days past due and by customer.
 
-On a fresh clone, the app builds `o2c.duckdb` itself on first launch (the same load + `dbt build` steps CI runs), so it works with one command.
+![AR aging page](docs/images/dashboard_aging.png)
+
+### Invoice reconciliation (`fct_invoice_reconciliation`)
+
+How well collection is going. Cards show billed vs collected, the share of invoices settled, and how often the model's status matches the answer key. Charts show invoices by status, billed vs collected by month, and a histogram of when customers pay relative to the due date. There's a filterable invoice table, and the whole page can be filtered by customer.
+
+![Invoice reconciliation page](docs/images/dashboard_reconciliation.png)
+
+### Exceptions (`mart_exceptions`)
+
+The finance team's to-do list. Cards show items to review, overdue money to chase, unidentified deposits, and refunds owed. The table lists every exception with a suggested next step, oldest first. It can be filtered by type, searched by name or ID, and downloaded as a CSV that opens correctly in Excel.
+
+![Exceptions page](docs/images/dashboard_exceptions.png)
 
 ## Results (as of 2026-10-01)
 
@@ -135,23 +145,63 @@ The dataset comes from [`generate_o2c_data.py`](generate_o2c_data.py), which **p
 
 That test is set to `severity: warn`, so it reports the score without failing the build. The other 49 tests (keys, relationships, accepted values, a custom `greater_than` generic test, and a due-date check) must pass.
 
-## Run it locally
+## Run it yourself
+
+The whole warehouse is one local DuckDB file, so there's no cloud account, database server, or dbt profile to set up. (`profiles.yml` is included in the repo.)
+
+**You need:** Python 3.10 or newer, and git. The commands below are for macOS, Linux, or WSL on Windows.
+
+### 1. Get the code and install
 
 ```bash
-python -m venv .venv && source .venv/bin/activate
+git clone https://github.com/davidkurland94-lgtm/jp-order-to-cash-reconciliation.git
+cd jp-order-to-cash-reconciliation
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
-python load_raw_data.py      # loads raw_data/*.csv into o2c.duckdb
-dbt deps
-dbt build                    # seeds, models, and tests
-dbt docs generate && dbt docs serve   # browse the lineage graph locally
-streamlit run dashboard/app.py        # the AR aging dashboard
 ```
 
-The whole warehouse is one DuckDB file. There's no cloud account or server to set up. Settings like the as-of date and the maximum fee are dbt `vars` in [`dbt_project.yml`](dbt_project.yml), and can be overridden:
+### 2. Open the dashboard
+
+```bash
+streamlit run dashboard/app.py
+```
+
+Open the link it prints (http://localhost:8501). On the first launch, the app builds the database for you, which takes about 30 seconds. Press `Ctrl+C` in the terminal to stop it.
+
+### 3. (Optional) Run the dbt pipeline step by step
+
+Do this if you want to see dbt work or change the models:
+
+```bash
+python load_raw_data.py    # load raw_data/*.csv into o2c.duckdb
+dbt deps                   # install dbt packages
+dbt build                  # build all models and run all tests
+dbt docs generate
+dbt docs serve             # lineage graph and column docs at http://localhost:8080
+```
+
+After a rebuild, press `C` in the dashboard to clear its cache, then `R` to rerun the page.
+
+### Changing settings
+
+The as-of date and the maximum bank fee are dbt `vars` in [`dbt_project.yml`](dbt_project.yml). You can override them for one run:
 
 ```bash
 dbt build --vars '{as_of_date: 2026-11-01}'
 ```
+
+### Regenerating the data
+
+The CSVs in `raw_data/` and `seeds/` are already committed, so you don't need this step. To regenerate them (for example, after editing the generator):
+
+```bash
+python generate_o2c_data.py    # writes to data/
+cp data/{customers,crm_orders,erp_invoices,bank_transactions}.csv raw_data/
+cp data/expected_*.csv seeds/
+```
+
+The generator uses a fixed random seed, so unless you change it, you get the same data every time.
 
 ## CI
 

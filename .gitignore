@@ -7,3 +7,5 @@ logs/
 order-to-cash/
 .python-version
 dbt_internal_packages/
+__pycache__/
+data/

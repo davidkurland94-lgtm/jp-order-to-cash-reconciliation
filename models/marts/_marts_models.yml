@@ -35,7 +35,7 @@ models:
               arguments:
                 values: ['paid', 'paid_fee_deducted', 'partial', 'overpaid', 'unpaid_overdue', 'not_yet_due']
       - name: days_past_due
-        description: "Days between due_date and as_of_date; 0 if not yet due"
+        description: "Days between due_date and as_of_date for invoices with money still owed; 0 if not yet due, null once settled"
       - name: is_missing_order
         description: The invoice's order_id is not in the CRM
       - name: is_amount_differs_from_order

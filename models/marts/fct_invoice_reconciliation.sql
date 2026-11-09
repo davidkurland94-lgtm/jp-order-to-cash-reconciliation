@@ -99,7 +99,10 @@ final as (
             when reconciliation_status = 'paid_fee_deducted' then short_amount_jpy
             else 0
         end as bank_fee_jpy,
-        greatest(date_diff('day', due_date, date '{{ as_of_date }}'), 0) as days_past_due,
+        case
+            when reconciliation_status in ('unpaid_overdue', 'partial', 'not_yet_due')
+                then greatest(date_diff('day', due_date, date '{{ as_of_date }}'), 0)
+        end as days_past_due,
         date '{{ as_of_date }}' as as_of_date
     from with_status
 
