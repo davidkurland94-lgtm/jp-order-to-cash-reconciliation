@@ -50,7 +50,24 @@ jobs:
       - name: dbt build
         run: dbt build
 
-      # 7. Save dbt's run results so you can download them from the run page.
+      # 7. Build the documentation website.
+      #    --static bundles the whole site (HTML + manifest + catalog) into ONE file,
+      #    target/static_index.html, which is all GitHub Pages needs.
+      #    Pages serves index.html by default, so copy it under that name into site/.
+      - name: Generate dbt docs
+        run: |
+          dbt docs generate --static
+          mkdir -p site
+          cp target/static_index.html site/index.html
+
+      # 8. Hand the site/ folder to GitHub Pages (only on main; PRs just test)
+      - name: Upload docs for GitHub Pages
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      # 9. Save dbt's run results so you can download them from the run page.
       #    "if: always()" means: do this even if the build step failed (that's when you need it most)
       - name: Upload dbt artifacts
         if: always()
@@ -60,3 +77,25 @@ jobs:
           path: |
             target/run_results.json
             target/manifest.json
+
+  # Second job: publish the docs site. It runs on a separate machine, AFTER build.
+  deploy-docs:
+    needs: build                              # wait for build; skipped if build failed
+    if: github.event_name != 'pull_request'   # never publish from a PR
+
+    # By default a workflow can only read the repo. Publishing to Pages needs
+    # these two extra permissions, granted to this job only.
+    permissions:
+      pages: write       # allowed to publish to GitHub Pages
+      id-token: write    # proves to Pages that this run really comes from your repo
+
+    # An "environment" gives the deployment a name and shows the live URL on the run page
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment                        # lets the "url" line above read this step's output
+        uses: actions/deploy-pages@v4
