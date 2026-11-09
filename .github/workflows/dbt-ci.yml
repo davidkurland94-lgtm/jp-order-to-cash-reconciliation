@@ -1,0 +1,62 @@
+# dbt-ci.yml — GitHub Actions workflow: rebuild the whole project and run every test.
+#
+# GitHub reads any .yml file inside .github/workflows/ automatically.
+# Each run happens on a brand-new, empty Linux machine (a "runner"), so the steps
+# below must do EVERYTHING you'd do on a fresh laptop: get the code, install Python,
+# install dbt, load the data, build.
+
+name: dbt build              # the name shown in the Actions tab and on the badge
+
+# WHEN to run
+on:
+  push:
+    branches: [main]         # every push to main
+  pull_request:              # every pull request (so you see breakage before merging)
+  workflow_dispatch:         # adds a "Run workflow" button in the Actions tab
+
+# WHAT to run: a workflow has one or more "jobs"; each job runs on its own machine
+jobs:
+  build:
+    runs-on: ubuntu-latest   # free Linux runner provided by GitHub
+
+    steps:
+      # 1. Copy the repo onto the runner (it starts empty)
+      - name: Check out code
+        uses: actions/checkout@v4          # "uses" = a ready-made step someone published
+
+      # 2. Install Python, the same version you use locally
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip                       # reuse downloaded packages between runs = faster
+
+      # 3. Install dbt + DuckDB from your pinned requirements
+      - name: Install Python packages
+        run: pip install -r requirements.txt   # "run" = a plain shell command
+
+      # 4. Load raw_data/*.csv into o2c.duckdb (the .duckdb file is gitignored,
+      #    so CI creates it from scratch, just like a new teammate would)
+      - name: Load raw data into DuckDB
+        run: python load_raw_data.py
+
+      # 5. Download dbt packages from packages.yml
+      - name: Install dbt packages
+        run: dbt deps
+
+      # 6. Seeds + models + tests, all in dependency order.
+      #    If any test with severity 'error' fails, dbt exits non-zero -> the run turns red.
+      #    Tests set to 'warn' (like the answer-key test) show up in the log but don't fail it.
+      - name: dbt build
+        run: dbt build
+
+      # 7. Save dbt's run results so you can download them from the run page.
+      #    "if: always()" means: do this even if the build step failed (that's when you need it most)
+      - name: Upload dbt artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dbt-target
+          path: |
+            target/run_results.json
+            target/manifest.json
